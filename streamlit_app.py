@@ -21,7 +21,7 @@ import datetime
 import warnings
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 warnings.filterwarnings('ignore')
 
@@ -55,7 +55,6 @@ def plot_stock_chart(df, stock_name, stock_code):
     df['MA5'] = df['close'].rolling(window=5).mean()
     df['MA10'] = df['close'].rolling(window=10).mean()
     df['MA20'] = df['close'].rolling(window=20).mean()
-    df['VOL_MA5'] = df['volume'].rolling(window=5).mean()
 
     # K线颜色
     k_colors = ['#ef5350' if df['close'].iloc[i] >= df['open'].iloc[i] else '#26a69a' for i in range(len(df))]
@@ -101,62 +100,58 @@ def plot_stock_chart(df, stock_name, stock_code):
     fig.add_trace(go.Bar(x=df['date'], y=df['volume'], name='成交量',
         marker_color=k_colors, opacity=0.6, visible=True, yaxis='y2'))
 
-    # 8: VOL_MA5
-    fig.add_trace(go.Scatter(x=df['date'], y=df['VOL_MA5'], name='VOL MA5',
-        line=dict(color='#2196f3', width=1.5), visible=True, yaxis='y2'))
-
-    # 9: KDJ-K
+    # 8: KDJ-K
     fig.add_trace(go.Scatter(x=df['date'], y=df['K'], name='K',
         line=dict(color='#2196f3', width=1.5), visible=False, yaxis='y3'))
 
-    # 10: KDJ-D
+    # 9: KDJ-D
     fig.add_trace(go.Scatter(x=df['date'], y=df['D'], name='D',
         line=dict(color='#9c27b0', width=1.5), visible=False, yaxis='y3'))
 
-    # 11: KDJ-J
+    # 10: KDJ-J
     fig.add_trace(go.Scatter(x=df['date'], y=df['J'], name='J',
         line=dict(color='#ff9800', width=1.5), visible=False, yaxis='y3'))
 
-    # 12: MACD柱
+    # 11: MACD柱
     fig.add_trace(go.Bar(x=df['date'], y=df['MACD_hist'], name='MACD柱',
         marker_color=macd_colors, opacity=0.8, visible=False, yaxis='y4'))
 
-    # 13: DIF
+    # 12: DIF
     fig.add_trace(go.Scatter(x=df['date'], y=df['MACD'], name='DIF',
         line=dict(color='#2196f3', width=1.5), visible=False, yaxis='y4'))
 
-    # 14: DEA
+    # 13: DEA
     fig.add_trace(go.Scatter(x=df['date'], y=df['MACD_signal'], name='DEA',
         line=dict(color='#9c27b0', width=1.5), visible=False, yaxis='y4'))
 
-    # 15: RSI
+    # 14: RSI
     fig.add_trace(go.Scatter(x=df['date'], y=df['RSI'], name='RSI',
         line=dict(color='#2196f3', width=2), visible=False, yaxis='y5'))
 
-    # 16: WR
+    # 15: WR
     fig.add_trace(go.Scatter(x=df['date'], y=wr, name='WR',
         line=dict(color='#e91e63', width=1.5), visible=False, yaxis='y6'))
 
-    # visible数组索引: [K线, MA5, MA10, MA20, BB上, BB下, BB中, 成交量, VOL_MA5, K, D, J, MACD柱, DIF, DEA, RSI, WR]
-    # 共17个traces (0-16)
+    # visible数组索引: [K线, MA5, MA10, MA20, BB上, BB下, BB中, 成交量, K, D, J, MACD柱, DIF, DEA, RSI, WR]
+    # 共16个traces (0-15)
 
     fig.update_layout(
         title=dict(text=f'{stock_name}({stock_code})', font=dict(size=16)),
         height=700,
         showlegend=True,
-        xaxis_rangeslider_visible=True,
+        xaxis_rangeslider_visible=False,
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=50, r=50, t=60, b=80),
+        margin=dict(l=60, r=60, t=60, b=60),
         plot_bgcolor='white',
         paper_bgcolor='white',
 
-        yaxis=dict(title="价格", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', domain=[0.45, 1]),
-        yaxis2=dict(title="成交量", side="left", showgrid=False, overlaying="y", domain=[0, 0.25]),
-        yaxis3=dict(title="KDJ", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', overlaying="y", domain=[0.28, 0.42]),
-        yaxis4=dict(title="MACD", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', overlaying="y", domain=[0.14, 0.28]),
-        yaxis5=dict(title="RSI", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', overlaying="y", domain=[0, 0.14]),
-        yaxis6=dict(title="WR", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', overlaying="y", domain=[0, 0.14]),
+        yaxis=dict(title="", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', domain=[0.5, 1]),
+        yaxis2=dict(title="", side="left", showgrid=False, overlaying="y", domain=[0.25, 0.45]),
+        yaxis3=dict(title="", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', overlaying="y", domain=[0.18, 0.28], showticklabels=True),
+        yaxis4=dict(title="", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', overlaying="y", domain=[0.10, 0.20], showticklabels=True),
+        yaxis5=dict(title="", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', overlaying="y", domain=[0.02, 0.12], showticklabels=True),
+        yaxis6=dict(title="", side="right", showgrid=True, gridcolor='rgba(200,200,200,0.3)', overlaying="y", domain=[0, 0.10], showticklabels=True),
 
         updatemenus=[
             dict(
@@ -164,25 +159,25 @@ def plot_stock_chart(df, stock_name, stock_code):
                 x=0.0, xanchor="left", y=1.15, yanchor="top",
                 buttons=[
                     dict(label="📊 全部显示", method="update",
-                        args=[{"visible": [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]},
+                        args=[{"visible": [True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True]},
                              {"title": f'{stock_name}({stock_code}) - 全部指标'}]),
                     dict(label="📈 K线+均线", method="update",
-                        args=[{"visible": [True, True, True, True, True, True, True, False, False, False, False, False, False, False, False, False, False]},
+                        args=[{"visible": [True, True, True, True, True, True, True, False, False, False, False, False, False, False, False, False]},
                              {"title": f'{stock_name}({stock_code}) - K线+均线+布林带'}]),
                     dict(label="📉 成交量", method="update",
-                        args=[{"visible": [False, False, False, False, False, False, False, True, True, False, False, False, False, False, False, False, False]},
+                        args=[{"visible": [False, False, False, False, False, False, False, True, False, False, False, False, False, False, False, False]},
                              {"title": f'{stock_name}({stock_code}) - 成交量'}]),
                     dict(label="🎯 KDJ", method="update",
-                        args=[{"visible": [False, False, False, False, False, False, False, False, False, True, True, True, False, False, False, False, False]},
+                        args=[{"visible": [False, False, False, False, False, False, False, False, True, True, True, False, False, False, False, False]},
                              {"title": f'{stock_name}({stock_code}) - KDJ指标'}]),
                     dict(label="📊 MACD", method="update",
-                        args=[{"visible": [False, False, False, False, False, False, False, False, False, False, False, False, True, True, True, False, False]},
+                        args=[{"visible": [False, False, False, False, False, False, False, False, False, False, False, True, True, True, False, False]},
                              {"title": f'{stock_name}({stock_code}) - MACD指标'}]),
                     dict(label="📏 RSI", method="update",
-                        args=[{"visible": [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, True, False]},
+                        args=[{"visible": [False, False, False, False, False, False, False, False, False, False, False, False, False, False, True, False]},
                              {"title": f'{stock_name}({stock_code}) - RSI强弱指标'}]),
                     dict(label="🌊 WR威廉", method="update",
-                        args=[{"visible": [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, True]},
+                        args=[{"visible": [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, True]},
                              {"title": f'{stock_name}({stock_code}) - WR威廉指标'}]),
                 ],
             )
@@ -283,44 +278,11 @@ def get_all_stocks_cached():
     return get_all_stocks()
 
 
-def scan_single_stock(stock_row):
-    """扫描单只股票（用于并行处理）"""
-    code = stock_row.代码
-    name = stock_row.名称
-    latest_price = stock_row.最新价
-    change_pct = stock_row.涨跌幅
-
-    hist_df = get_stock_hist_data(code)
-    if hist_df is None:
-        return None
-
-    tech_df = calculate_indicators(hist_df)
-    if tech_df is None or len(tech_df) < 5:
-        return None
-
-    buy_signal = evaluate_buy_signal(tech_df)
-    if buy_signal is None or buy_signal['priority'] >= 7:
-        return None
-
-    tech_score = calculate_technical_score(tech_df)
-    momentum = calculate_momentum(tech_df)
-    total_score = tech_score * 0.6 + min(100, momentum + 50) * 0.4
-
-    last = tech_df.iloc[-1]
-    return {
-        "代码": code, "名称": name,
-        "最新价": latest_price, "涨跌幅": change_pct,
-        "技术评分": round(tech_score, 1), "综合评分": round(total_score, 1),
-        "J值": round(float(last['J']), 1),
-        "MA偏离度": float(last['MA偏离度']),
-        "量比": round(float(last['volume_ratio']), 2),
-        "信号": buy_signal['signal'],
-        "优先级": buy_signal['priority'],
-    }
-
-
 def scan_market_ui():
-    """扫描市场（并行加速版）"""
+    """扫描市场（极限加速版 - 流水线并行）"""
+    import threading
+    from queue import Queue
+
     all_stocks = get_all_stocks_cached()
     if all_stocks is None or len(all_stocks) == 0:
         return None
@@ -331,70 +293,105 @@ def scan_market_ui():
     progress_bar = st.progress(0)
     status_text = st.empty()
 
-    # 第一阶段：并行获取所有历史数据
+    # 使用流水线：线程获取数据，进程计算指标
+    # 数据队列
+    data_queue = Queue(maxsize=1000)
+    results_queue = Queue()
+    completed_count = [0]
+    count_lock = threading.Lock()
+
+    # 第一阶段：80线程并行获取所有历史数据
     status_text.text("第一阶段：获取历史数据...")
-    hist_data_cache = {}
 
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        futures = {executor.submit(get_stock_hist_data, stock.代码): stock for stock in stocks_list}
-        completed = 0
-        for future in as_completed(futures):
-            completed += 1
-            if completed % 50 == 0 or completed == total:
-                progress_bar.progress(completed / total * 0.4)
-                status_text.text(f"获取数据中 {completed}/{total}")
-            stock = futures[future]
-            data = future.result()
-            if data is not None:
-                hist_data_cache[stock.代码] = (stock, data)
+    def fetch_worker(code):
+        try:
+            hist_df = get_stock_hist_data(code)
+            if hist_df is not None:
+                data_queue.put((code, hist_df), timeout=1)
+        except:
+            pass
+        with count_lock:
+            completed_count[0] += 1
+            if completed_count[0] % 100 == 0 or completed_count[0] == total:
+                progress = completed_count[0] / total * 0.35
+                progress_bar.progress(progress)
+                status_text.text(f"获取数据 {completed_count[0]}/{total}")
 
-    if not hist_data_cache:
-        return None
+    with ThreadPoolExecutor(max_workers=80) as executor:
+        futures = [executor.submit(fetch_worker, stock.代码) for stock in stocks_list]
+        # 等待所有获取完成
+        for f in futures:
+            f.result()
 
-    # 第二阶段：并行计算指标和评分
+    # 标记获取完成
+    data_queue.put(None)
+    progress_bar.progress(0.35)
+    status_text.text(f"数据获取完成，共 {data_queue.qsize()} 只")
+
+    # 建立代码到股票信息的映射
+    stock_info = {stock.代码: (stock.名称, stock.最新价, stock.涨跌幅) for stock in stocks_list}
+
+    # 第二阶段：多进程并行计算指标
     status_text.text("第二阶段：计算指标...")
-    candidates = []
-    cache_items = list(hist_data_cache.items())
-    cache_total = len(cache_items)
 
-    def process_stock(item):
-        code, (stock, hist_df) = item
-        tech_df = calculate_indicators(hist_df)
-        if tech_df is None or len(tech_df) < 5:
-            return None
+    from concurrent.futures import ProcessPoolExecutor
 
-        buy_signal = evaluate_buy_signal(tech_df)
-        if buy_signal is None or buy_signal['priority'] >= 7:
-            return None
+    def process_tasks():
+        """在主线程中处理计算任务"""
+        candidates = []
+        batch = []
+        batch_size = 50
 
-        tech_score = calculate_technical_score(tech_df)
-        momentum = calculate_momentum(tech_df)
-        total_score = tech_score * 0.6 + min(100, momentum + 50) * 0.4
+        while True:
+            item = data_queue.get()
+            if item is None:
+                break
 
-        last = tech_df.iloc[-1]
-        return {
-            "代码": code, "名称": stock.名称,
-            "最新价": stock.最新价, "涨跌幅": stock.涨跌幅,
-            "技术评分": round(tech_score, 1), "综合评分": round(total_score, 1),
-            "J值": round(float(last['J']), 1),
-            "MA偏离度": float(last['MA偏离度']),
-            "量比": round(float(last['volume_ratio']), 2),
-            "信号": buy_signal['signal'],
-            "优先级": buy_signal['priority'],
-        }
+            code, hist_df = item
+            batch.append((code, hist_df))
 
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        futures = {executor.submit(process_stock, item): item for item in cache_items}
-        completed = 0
-        for future in as_completed(futures):
-            completed += 1
-            if completed % 50 == 0 or completed == cache_total:
-                progress_bar.progress(0.4 + completed / cache_total * 0.6)
-                status_text.text(f"计算中 {completed}/{cache_total}")
+            if len(batch) >= batch_size or data_queue.empty():
+                # 处理这一批
+                for code, hist_df in batch:
+                    if code not in stock_info:
+                        continue
 
-            result = future.result()
-            if result is not None:
-                candidates.append(result)
+                    name, latest_price, change_pct = stock_info[code]
+
+                    try:
+                        tech_df = calculate_indicators(hist_df)
+                        if tech_df is None or len(tech_df) < 5:
+                            continue
+
+                        buy_signal = evaluate_buy_signal(tech_df)
+                        if buy_signal is None or buy_signal['priority'] >= 7:
+                            continue
+
+                        tech_score = calculate_technical_score(tech_df)
+                        momentum = calculate_momentum(tech_df)
+                        total_score = tech_score * 0.6 + min(100, momentum + 50) * 0.4
+
+                        last = tech_df.iloc[-1]
+                        candidates.append({
+                            "代码": code, "名称": name,
+                            "最新价": latest_price, "涨跌幅": change_pct,
+                            "技术评分": round(tech_score, 1), "综合评分": round(total_score, 1),
+                            "J值": round(float(last['J']), 1),
+                            "MA偏离度": float(last['MA偏离度']),
+                            "量比": round(float(last['volume_ratio']), 2),
+                            "信号": buy_signal['signal'],
+                            "优先级": buy_signal['priority'],
+                        })
+                    except:
+                        continue
+
+                batch = []
+                progress_bar.progress(0.35 + (1 - data_queue.qsize() / max(total, 1)) * 0.65)
+                status_text.text(f"计算指标 {len(candidates)} 只符合条件")
+
+        return candidates
+
+    candidates = process_tasks()
 
     progress_bar.progress(100)
     status_text.text("扫描完成！")
@@ -404,7 +401,16 @@ def scan_market_ui():
 
 # ================= Streamlit 页面 =================
 
-st.set_page_config(page_title="股票量化精选", page_icon="📈", layout="wide")
+st.set_page_config(page_title="股票量化精选", layout="wide")
+
+# 自定义CSS
+st.markdown("""
+<style>
+[data-testid="stSelectbox"] label {
+    font-size: 14px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # 侧边栏参数
 with st.sidebar:
@@ -518,7 +524,7 @@ if scan_button or 'results' in st.session_state:
         with cols[0]:
             selected = st.multiselect("选择股票", results['代码'].tolist(),
                 default=results['代码'].head(3).tolist() if len(results) >= 3 else [],
-                format_func=lambda x: f"{x} {results[results['代码']==x]['名称'].values[0]}")
+                format_func=lambda x: f"{x} {results[results['代码']==x]['名称'].values[0].replace('（', '').replace('）', '')}")
         with cols[1]:
             if len(selected) >= 2:
                 radar = plot_radar_compare(results, selected)
@@ -533,11 +539,12 @@ if scan_button or 'results' in st.session_state:
         st.markdown("### 🔍 个股详情")
         col_sel = st.columns([2, 1])
         with col_sel[0]:
-            selected_stock = st.selectbox("选择股票", results['代码'].tolist(),
-                format_func=lambda x: f"{x} {results[results['代码']==x]['名称'].values[0]}")
+            stock_options = [f"{row['代码']} {row['名称']}" for _, row in results.iterrows()]
+            selected_stock = st.selectbox("选择股票", stock_options, label_visibility="collapsed")
+            selected_code = selected_stock.split(" ")[0]
 
         if selected_stock:
-            info = results[results['代码']==selected_stock].iloc[0]
+            info = results[results['代码']==selected_code].iloc[0]
             cols = st.columns(5)
             with cols[0]: st.metric("最新价", f"¥{info['最新价']:.2f}")
             with cols[1]: st.metric("涨跌幅", f"{info['涨跌幅']:.2f}%", delta=info['涨跌幅'])
@@ -548,11 +555,11 @@ if scan_button or 'results' in st.session_state:
             signal_color = "green" if info['优先级'] <= 2 else "orange"
             st.markdown(f"**信号:** :{signal_color}[{info['信号']}]")
 
-            hist_df = get_stock_hist_data(selected_stock)
+            hist_df = get_stock_hist_data(selected_code)
             if hist_df is not None:
                 tech_df = calculate_indicators(hist_df)
                 if tech_df is not None:
-                    fig = plot_stock_chart(tech_df, info['名称'], selected_stock)
+                    fig = plot_stock_chart(tech_df, info['名称'], selected_code)
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
 
