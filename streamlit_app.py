@@ -279,119 +279,78 @@ def get_all_stocks_cached():
 
 
 def scan_market_ui():
-    """扫描市场（极限加速版 - 流水线并行）"""
-    import threading
-    from queue import Queue
-
+    """扫描市场（并行加速版）"""
     all_stocks = get_all_stocks_cached()
     if all_stocks is None or len(all_stocks) == 0:
         return None
 
     stocks_list = list(all_stocks.itertuples(index=False))
-    total = len(stocks_list)
 
     progress_bar = st.progress(0)
     status_text = st.empty()
 
-    # 使用流水线：线程获取数据，进程计算指标
-    # 数据队列
-    data_queue = Queue(maxsize=1000)
-    results_queue = Queue()
-    completed_count = [0]
-    count_lock = threading.Lock()
-
-    # 第一阶段：80线程并行获取所有历史数据
+    # 第一阶段：80线程并行获取所有历史数据（不更新UI）
     status_text.text("第一阶段：获取历史数据...")
 
-    def fetch_worker(code):
-        try:
-            hist_df = get_stock_hist_data(code)
-            if hist_df is not None:
-                data_queue.put((code, hist_df), timeout=1)
-        except:
-            pass
-        with count_lock:
-            completed_count[0] += 1
-            if completed_count[0] % 100 == 0 or completed_count[0] == total:
-                progress = completed_count[0] / total * 0.35
-                progress_bar.progress(progress)
-                status_text.text(f"获取数据 {completed_count[0]}/{total}")
+    def fetch_all_data():
+        results = {}
+        with ThreadPoolExecutor(max_workers=80) as executor:
+            futures = {executor.submit(get_stock_hist_data, stock.代码): stock for stock in stocks_list}
+            for future in futures:
+                stock = futures[future]
+                data = future.result()
+                if data is not None:
+                    results[stock.代码] = (stock, data)
+        return results
 
-    with ThreadPoolExecutor(max_workers=80) as executor:
-        futures = [executor.submit(fetch_worker, stock.代码) for stock in stocks_list]
-        # 等待所有获取完成
-        for f in futures:
-            f.result()
+    hist_data_cache = fetch_all_data()
+    progress_bar.progress(0.4)
 
-    # 标记获取完成
-    data_queue.put(None)
-    progress_bar.progress(0.35)
-    status_text.text(f"数据获取完成，共 {data_queue.qsize()} 只")
+    if not hist_data_cache:
+        return None
 
     # 建立代码到股票信息的映射
     stock_info = {stock.代码: (stock.名称, stock.最新价, stock.涨跌幅) for stock in stocks_list}
 
-    # 第二阶段：多进程并行计算指标
+    # 第二阶段：主线程计算指标（可以安全更新UI）
     status_text.text("第二阶段：计算指标...")
+    candidates = []
+    cache_items = list(hist_data_cache.items())
+    cache_total = len(cache_items)
 
-    from concurrent.futures import ProcessPoolExecutor
+    for idx, (code, (_, hist_df)) in enumerate(cache_items):
+        name, latest_price, change_pct = stock_info[code]
 
-    def process_tasks():
-        """在主线程中处理计算任务"""
-        candidates = []
-        batch = []
-        batch_size = 50
+        try:
+            tech_df = calculate_indicators(hist_df)
+            if tech_df is None or len(tech_df) < 5:
+                continue
 
-        while True:
-            item = data_queue.get()
-            if item is None:
-                break
+            buy_signal = evaluate_buy_signal(tech_df)
+            if buy_signal is None or buy_signal['priority'] >= 7:
+                continue
 
-            code, hist_df = item
-            batch.append((code, hist_df))
+            tech_score = calculate_technical_score(tech_df)
+            momentum = calculate_momentum(tech_df)
+            total_score = tech_score * 0.6 + min(100, momentum + 50) * 0.4
 
-            if len(batch) >= batch_size or data_queue.empty():
-                # 处理这一批
-                for code, hist_df in batch:
-                    if code not in stock_info:
-                        continue
+            last = tech_df.iloc[-1]
+            candidates.append({
+                "代码": code, "名称": name,
+                "最新价": latest_price, "涨跌幅": change_pct,
+                "技术评分": round(tech_score, 1), "综合评分": round(total_score, 1),
+                "J值": round(float(last['J']), 1),
+                "MA偏离度": float(last['MA偏离度']),
+                "量比": round(float(last['volume_ratio']), 2),
+                "信号": buy_signal['signal'],
+                "优先级": buy_signal['priority'],
+            })
+        except:
+            continue
 
-                    name, latest_price, change_pct = stock_info[code]
-
-                    try:
-                        tech_df = calculate_indicators(hist_df)
-                        if tech_df is None or len(tech_df) < 5:
-                            continue
-
-                        buy_signal = evaluate_buy_signal(tech_df)
-                        if buy_signal is None or buy_signal['priority'] >= 7:
-                            continue
-
-                        tech_score = calculate_technical_score(tech_df)
-                        momentum = calculate_momentum(tech_df)
-                        total_score = tech_score * 0.6 + min(100, momentum + 50) * 0.4
-
-                        last = tech_df.iloc[-1]
-                        candidates.append({
-                            "代码": code, "名称": name,
-                            "最新价": latest_price, "涨跌幅": change_pct,
-                            "技术评分": round(tech_score, 1), "综合评分": round(total_score, 1),
-                            "J值": round(float(last['J']), 1),
-                            "MA偏离度": float(last['MA偏离度']),
-                            "量比": round(float(last['volume_ratio']), 2),
-                            "信号": buy_signal['signal'],
-                            "优先级": buy_signal['priority'],
-                        })
-                    except:
-                        continue
-
-                batch = []
-                progress_bar.progress(0.35 + (1 - data_queue.qsize() / max(total, 1)) * 0.65)
-                status_text.text(f"计算指标 {len(candidates)} 只符合条件")
-
-        return candidates
-
-    candidates = process_tasks()
+        if (idx + 1) % 50 == 0 or idx + 1 == cache_total:
+            progress_bar.progress(0.4 + (idx + 1) / cache_total * 0.6)
+            status_text.text(f"计算中 {idx + 1}/{cache_total}")
 
     progress_bar.progress(100)
     status_text.text("扫描完成！")
